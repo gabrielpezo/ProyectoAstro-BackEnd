@@ -20,14 +20,22 @@ class User (db.Model):
 class Photos(db.Model):
     __tablename__ = 'photos'
     id = db.Column(db.Integer, primary_key=True)
-    picture = db.Column(db.String(100), nullable=False)
-    price = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(250), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    rating = db.Column(db.Float, nullable=False)
+    reviews = db.Column(db.Integer, nullable=False)
+    likes = db.Column(db.Integer, nullable=False)
+    image = db.Column(db.String(250), nullable=False)
 
     def serialize(self):
-        return{
+        return {
             "id": self.id,
-            "picture": self.picture,
-            "price": self.price
+            "name": self.name,
+            "price": self.price,
+            "rating": self.rating,
+            "reviews": self.reviews,
+            "likes": self.likes,
+            "image": self.image
         }
     
 class Comments (db.Model):
