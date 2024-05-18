@@ -1,11 +1,7 @@
-from flask import Flask, jsonify, request
+
 from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mydatabase.db'  # Cambia esto si usas otra base de datos
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
+db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = "user"
@@ -24,118 +20,40 @@ class User(db.Model):
 class Photos(db.Model):
     __tablename__ = 'photos'
     id = db.Column(db.Integer, primary_key=True)
-    image = db.Column(db.String(100), nullable=False)
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "image": self.image,
-        }
-
-class Photographer(db.Model):
-    __tablename__ = 'photographer'
-    id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), nullable=False)
-    email = db.Column(db.String(250), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    photos_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
-    uploaded_photos = db.relationship("Photos")
+    price = db.Column(db.Float, nullable=False)
+    rating = db.Column(db.Float, nullable=False)
+    reviews = db.Column(db.Integer, nullable=False)
+    likes = db.Column(db.Integer, nullable=False)
+    image = db.Column(db.String(250), nullable=False)
 
     def serialize(self):
         return {
             "id": self.id,
             "name": self.name,
-            "email": self.email,
-            "photos_id": self.photos_id
+            "price": self.price,
+            "rating": self.rating,
+            "reviews": self.reviews,
+            "likes": self.likes,
+            "image": self.image
         }
 
-class Favourites(db.Model):
-    __tablename__ = 'favourites'
-    id = db.Column(db.Integer, primary_key=True)
-    photographer_id = db.Column(db.Integer, db.ForeignKey('photographer.id'))
-    photographer = db.relationship("Photographer")
-    photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
-    photo = db.relationship("Photos")
+# def init_db():
+#     try:
+#         with app.app_context():
+#             db.create_all()
+#             if not Photos.query.all():
+#                 db.session.add_all([
+#                     Photos(id=1, name="Fotografía Astro", price=100.00, rating=4.8, reviews=67, likes=200, image="https://picsum.photos/id/26/600/800"),
+#                     Photos(id=2, name="Producto 2", price=50.00, rating=2.5, reviews=6, likes=2, image="https://picsum.photos/id/27/600/800"),
+#                     Photos(id=3, name="Producto 3", price=60.00, rating=3.5, reviews=621, likes=322, image="https://picsum.photos/id/28/600/800"),
+#                     Photos(id=4, name="Producto 4", price=40.00, rating=4.5, reviews=43, likes=223, image="https://picsum.photos/id/29/600/800"),
+#                     Photos(id=5, name="Producto 5", price=255.00, rating=3.5, reviews=323, likes=211, image="https://picsum.photos/id/30/600/800"),
+#                     Photos(id=6, name="Producto 6", price=5.530, rating=4.9, reviews=453, likes=222, image="https://picsum.photos/id/31/600/800")
+#                 ])
+#                 db.session.commit()
+#     except Exception as e:
+#         print("Error initializing database:", e)
 
-    def serialize(self):
-        return {
-            "id": self.id,
-            "photographer_id": self.photographer_id,
-            "photo_id": self.photo_id
-        }
-
-class FAQ(db.Model):
-    __tablename__ = 'faq'
-    id = db.Column(db.Integer, primary_key=True)
-    questions = db.Column(db.String(500), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    user = db.relationship("User")
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "questions": self.questions,
-            "user_id": self.user_id
-        }
-
-class Comments(db.Model):
-    __tablename__ = 'comments'
-    id = db.Column(db.Integer, primary_key=True)
-    comments = db.Column(db.String(1000), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship("User")
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "comments": self.comments,
-            "user_id": self.user_id
-        }
-
-class Cart(db.Model):
-    __tablename__ = 'cart'
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String(20), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship("User")
-    photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
-    photo = db.relationship("Photos")
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "date": self.date,
-            "user_id": self.user_id,
-            "photo_id": self.photo_id
-        }
-
-class Category(db.Model):
-    __tablename__ = 'categories'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), nullable=False)
-    description = db.Column(db.String(1000), nullable=False)
-    photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
-    photo = db.relationship("Photos")
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "photo_id": self.photo_id
-        }
-
-class Followers(db.Model):
-    __tablename__ = "followers"
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship("User")
-    photographer_id = db.Column(db.Integer, db.ForeignKey('photographer.id'))
-    photographer = db.relationship("Photographer")
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "photographer_id": self.photographer_id
-        }
+# # Llamar a la función init_db() para inicializar la base de datos
+# init_db()

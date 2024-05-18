@@ -1,11 +1,13 @@
 from flask import Flask, jsonify, request
 from models import db, User, Photos
 from flask_migrate import Migrate
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///dataBase.db"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  
 db.init_app(app)
+CORS(app)
 migrate = Migrate(app, db)
 
 @app.route('/users', methods=['GET'])
@@ -58,7 +60,13 @@ def handle_get_photo(id):
 @app.route('/photos', methods=['POST'])
 def handle_create_photo():
     data = request.get_json()
-    new_photo = Photos(id=data["id"], image=data["image"])
+    new_photo = Photos()
+    new_photo.name = data["name"]
+    new_photo.price = data["price"]
+    new_photo.rating = data["rating"]
+    new_photo.reviews = data["reviews"]
+    new_photo.likes = data["likes"]
+    new_photo.image = data["image"]
     db.session.add(new_photo)
     db.session.commit()
     return jsonify({"msg": "success", "photo": new_photo.serialize()}), 201
