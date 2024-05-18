@@ -17,7 +17,7 @@ def handle_get_all_users():
     return jsonify({"msg": "success", "users": users_list}), 200
 
 @app.route("/users/<int:id>", methods=["GET"])
-def handle_get_user(id):
+def handle_get_user(id):    
     user = User.query.get_or_404(id)
     return jsonify(user.serialize()), 200
 
