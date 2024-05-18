@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from models import db, User, Photos
+from models import db, User, Photos, Comments, Categories, Cart, Photographer, Favourites
 from flask_migrate import Migrate
 from flask_cors import CORS
 
