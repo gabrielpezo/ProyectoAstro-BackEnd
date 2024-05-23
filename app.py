@@ -155,6 +155,92 @@ def handle_delete_photo(id):
     db.session.commit()
     return jsonify({"msg": "Photo was deleted"}), 200
 
+
+@app.route('/photographer', methods=['POST'])
+def add_photographer():
+    data = request.get_json()
+    try:
+        new_photographer = Photographer(
+            name=data['name'],
+            email=data['email'], 
+            password=data['password'],
+            about_me=data['about_me'],
+            profile_pic=data['profile_pic']
+        )
+        db.session.add(new_photographer)
+        db.session.commit()
+        return jsonify(new_photographer.serialize()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/photographers', methods=['GET'])
+def get_all_photographers():
+    photographers = Photographer.query.all()
+    photographers_data = [{
+        "id": photographer.id,
+        "name": photographer.name,
+        "email": photographer.email,
+        "about_me": photographer.about_me,
+        "profile_pic": photographer.profile_pic
+    } for photographer in photographers]
+
+    return jsonify(photographers_data)
+
+
+@app.route('/photographer/<int:id>', methods=['PUT'])
+def update_photographer(id):
+    photographer = Photographer.query.get(id)
+    if not photographer:
+        return jsonify({"error": "Photographer not found"}), 404
+
+    data = request.get_json()
+    try:
+        if 'name' in data:
+            photographer.name = data['name']
+        if 'email' in data:
+            photographer.email = data['email']
+        if 'password' in data:
+            photographer.password = data['password']
+        if 'about_me' in data:
+            photographer.about_me = data['about_me']
+        if 'profile_pic' in data:
+            photographer.profile_pic = data['profile_pic']
+
+        db.session.commit()
+        return jsonify(photographer.serialize()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/photographer/<int:id>', methods=['DELETE'])
+def delete_photographer(id):
+    photographer = Photographer.query.get(id)
+    if not photographer:
+        return jsonify({"error": "Photographer not found"}), 404
+
+    try:
+        db.session.delete(photographer)
+        db.session.commit()
+        return jsonify({"message": "Photographer deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    
+@app.route('/profile/<int:id>', methods=['GET'])
+def get_photographer_profile(id):
+    photographer = Photographer.query.get(id)
+    if not photographer:
+        return jsonify({"error": "Photographer not found"}), 404
+
+    photographer_data = {
+        "name": photographer.name,
+        "about_me": photographer.about_me,
+        "profile_pic": photographer.profile_pic 
+    }
+    return jsonify(photographer_data)
+
+
 @app.route('/cart/<int:user_id>', methods=['GET'])
 def get_cart(user_id):
     cart = Cart.query.filter_by(user_id=user_id).first()
@@ -188,5 +274,6 @@ def add_to_cart(user_id):
 
 if __name__ == "__main__":
     with app.app_context():
+        print(app.url_map)
         db.create_all()  
     app.run(host="0.0.0.0", port="5000", debug=True)

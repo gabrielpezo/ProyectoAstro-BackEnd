@@ -100,30 +100,43 @@ class CartItem(db.Model):
             "photo_id": self.photo_id,
             "quantity": self.quantity,
         }
-
-
-
 class Photographer(db.Model):
     __tablename__ = 'photographer'
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), nullable=False)
     email = db.Column(db.String(250), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
+    password = db.Column(db.String(250), nullable=False)
+    about_me = db.Column(db.String(1000), nullable=False)
+    profile_pic = db.Column(db.String(250), unique=True, nullable=False)
     photos_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
-    uploaded_photos = db.relationship('Photos', backref='photographer', lazy=True)
+    uploaded_photos = db.relationship(Photos, uselist=False)
 
     def serialize(self):
-        return {
+        return { 
             "id": self.id,
             "name": self.name,
             "email": self.email,
-            "photo_id": self.photos_id
+            "about_me": self.about_me,
+            "profile_pic": self.profile_pic,
+            "photo_id": self.uploaded_photos.id if self.uploaded_photos else None
         }
+    
 
 class Favourites(db.Model):
     __tablename__ = 'favourites'
     id = db.Column(db.Integer, primary_key=True)
     photographer_id = db.Column(db.Integer, db.ForeignKey('photographer.id'))
+    photographer = db.relationship(Photographer, uselist=False)
+    photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
+    photo = db.relationship(Photos, uselist=False)
+
+    def serialize(self):
+            return{
+                "id": self.id,
+                "photographer_id": self.photographer.id,
+                "photo_id": self.photo.id
+            }
     photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'))
 
     def serialize(self):
