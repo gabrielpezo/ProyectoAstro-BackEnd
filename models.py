@@ -11,12 +11,12 @@ class User (db.Model):
     password = db.Column(db.String(200), nullable=False)
 
     def serialize(self):
-        return{
+        return{ 
             "id": self.id,
             "name": self.name,
             "email": self.email
         }
-    
+    #falta
 class Photos(db.Model):
     __tablename__ = 'photos'
     id = db.Column(db.Integer, primary_key=True)
@@ -29,7 +29,7 @@ class Photos(db.Model):
             "picture": self.picture,
             "price": self.price
         }
-    
+     #mejora posible 
 class Comments (db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
@@ -45,7 +45,7 @@ class Comments (db.Model):
                 "complaints": self.complaints,
                 "user_id": self.user.name
             }
-    
+    #mejora posible 
 class Categories (db.Model):
     __tablename__ = 'categories'
     id = db.Column(db.Integer, primary_key=True)
@@ -79,6 +79,8 @@ class Cart(db.Model):
                 "photo_id": self.photo.id
             }
 
+
+
 class Photographer(db.Model):
     __tablename__ = 'photographer'
     id = db.Column(db.Integer, primary_key=True)
@@ -95,7 +97,7 @@ class Photographer(db.Model):
                 "email": self.email,
                 "photo_id": self.uploaded_photos.id
             }
-
+# posible mejora
 class Favourites(db.Model):
     __tablename__ = 'favourites'
     id = db.Column(db.Integer, primary_key=True)
