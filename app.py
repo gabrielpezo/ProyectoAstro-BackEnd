@@ -1,43 +1,92 @@
+from datetime import timedelta
 from flask import Flask, jsonify, request
-from models import db, User, Photos, Comments, Categories, Cart, Photographer, Favourites
+from models import db, User, Photos, Comments, Categories, Cart, CartItem, Photographer, Favourites
 from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+
+
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///dataBase.db"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  
+app.config["SECRET_KEY"] = "MI_PALABRA_SECRETA"
+app.config["JWT_SECRET_KEY"] = "MI_PALABRA_SECRETA_JWT"
 db.init_app(app)
 CORS(app)
+bcrypt = Bcrypt(app)
 migrate = Migrate(app, db)
+jwt =JWTManager(app)
 
-@app.route('/users', methods=['GET'])
+expires_jwt = timedelta(minutes=10)
+
+
+@app.route('/get_users', methods=['GET'])
+@jwt_required()
 def handle_get_all_users():
     users = User.query.all()
     users_list = [user.serialize() for user in users]
     return jsonify({"msg": "success", "users": users_list}), 200
 
 @app.route("/users/<int:id>", methods=["GET"])
-def handle_get_user(id):    
+def handle_get_user(id):
     user = User.query.get_or_404(id)
     return jsonify(user.serialize()), 200
 
-@app.route("/users", methods=["POST"])
-def handle_create_user():
-    data = request.get_json()
-    new_user = User(name=data["name"], email=data["email"], password=data["password"])
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"msg": "success", "user": new_user.serialize()}), 201
+#inserte email y pasword
 
-@app.route("/users/<int:id>", methods=["PUT"])
-def update_user(id):
+@app.route("/create_user", methods=["POST"])
+def handle_user():
     data = request.get_json()
-    user = User.query.get_or_404(id)
-    user.name = data.get("name", user.name)
-    user.email = data.get("email", user.email)
-    user.password = data.get("password", user.password)
+    if User.query.filter_by(email=data["email"]).first():
+        return jsonify({"msg": "Email already registered"}), 400
+
+    create_user = User(
+        name=data["name"],
+        email=data["email"],
+        password=bcrypt.generate_password_hash(data["password"]).decode('utf-8')
+    )
+    db.session.add(create_user)
     db.session.commit()
-    return jsonify({"msg": "user updated", "user": user.serialize()}), 200
+    return jsonify({"msg": "User created successfully", "data": create_user.serialize()}), 201
+
+
+@app.route("/get_users/<int:id>", methods=["PUT"])#cambiar a update_users
+@jwt_required()
+def update_user(id):
+    
+    
+    data = request.get_json()
+    print (data)
+    update_user = User.query.filter_by(id=id).first() 
+    print(update_user)
+    if update_user is not None:
+        update_user.name = data["name"]
+        db.session.commit()
+        return jsonify({"msg": "user upgraded", "user": update_user.serialize()}), 200
+    else:
+        return jsonify({"msg": "user not found"}), 404
+  
+
+@app.route("/login", methods=['POST'])
+def login():
+    email = request.json.get("email")
+    password = request.json.get("password")
+
+    user_exist = User.query.filter_by(email=email).first()
+
+    if user_exist and bcrypt.check_password_hash(user_exist.password, password):
+        token = create_access_token(identity=email, expires_delta=expires_jwt)
+        return jsonify({
+            "msg": "success",
+            "data": user_exist.serialize(),
+            "token": token
+        }), 200
+    return jsonify({
+        "msg": "Invalid email or password"
+    }), 401
+
 
 @app.route('/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
@@ -45,6 +94,25 @@ def delete_user(id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({"msg": "User was deleted"}), 200
+
+#este es mi aporte 
+
+#endpoint recuperar cuenta o contraseña
+@app.route('/recover_password', methods=['POST'])
+def recover_password():
+    data = request.get_json()
+    user = User.query.filter_by(email=data['email']).first()
+    if user:
+        # Aquí agregarías la lógica para enviar el correo electrónico con el enlace de recuperación
+        return jsonify({"msg": "Password recovery email sent"}), 200
+    return jsonify({"msg": "Email not found"}), 404
+
+
+
+
+    
+
+# esto es traido de la nube 
 
 @app.route('/photos', methods=['GET'])
 def handle_get_all_photos():
@@ -60,13 +128,14 @@ def handle_get_photo(id):
 @app.route('/photos', methods=['POST'])
 def handle_create_photo():
     data = request.get_json()
-    new_photo = Photos()
-    new_photo.name = data["name"]
-    new_photo.price = data["price"]
-    new_photo.rating = data["rating"]
-    new_photo.reviews = data["reviews"]
-    new_photo.likes = data["likes"]
-    new_photo.image = data["image"]
+    new_photo = Photos(
+        name=data["name"],
+        price=data["price"],
+        rating=data["rating"],
+        reviews=data["reviews"],
+        likes=data["likes"],
+        image=data["image"]
+    )
     db.session.add(new_photo)
     db.session.commit()
     return jsonify({"msg": "success", "photo": new_photo.serialize()}), 201
@@ -86,7 +155,6 @@ def handle_delete_photo(id):
     db.session.commit()
     return jsonify({"msg": "Photo was deleted"}), 200
 
-from flask import request, jsonify
 
 @app.route('/photographer', methods=['POST'])
 def add_photographer():
@@ -173,91 +241,39 @@ def get_photographer_profile(id):
     return jsonify(photographer_data)
 
 
-# @app.route('/photographer', methods=['POST'])
-# def create_photographer():
-#     data = request.get_json()
-#     required_fields = ['name', 'email', 'password', 'photographer_info', 'photo_name', 'photo_price', 'photo_image']
-
-#     if not data or not all(field in data for field in required_fields):
-#         return jsonify({"error": "Missing required data, please include: " + ", ".join(required_fields)}), 400
-
-#     try:
-#         new_photo = Photos(
-#             name=data['photo_name'],
-#             price=data['photo_price'],
-#             image=data['photo_image'],
-#             rating=0,  
-#             reviews=0,  
-#             likes=0    
-#         )
-#         db.session.add(new_photo)
-#         db.session.flush()  # Para obtener el ID inmediatamente después de insertar
-
-#         new_photographer = Photographer(
-#             name=data['name'],
-#             email=data['email'],
-#             password=data['password'],
-#             photographer_info=data['photographer_info'],
-#             photos_id=new_photo.id
-#         )
-#         db.session.add(new_photographer)
-#         db.session.commit()
-
-#         return jsonify(new_photographer.serialize()), 201
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({"error": str(e)}), 500
-
-# class Photographer(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.String(120), nullable=False)
-#     photo = db.Column(db.String(300), nullable=True)
-#     about_me = db.Column(db.String(300), nullable=True)
-
-# @app.route('/photographer/<int:id>', methods=['GET'])
-# def get_photographer(id):
-#     photographer = Photographer.query.get_or_404(id)
-#     return jsonify({
-#         'name': photographer.name,
-#         'photo': photographer.photo,
-#         'aboutMe': photographer.about_me
-#     })
-
-# @app.route('/photographer/<int:id>', methods=['PUT'])
-# def update_photographer(id):
-#     photographer = Photographer.query.get(id)
-#     if not photographer:
-#         return jsonify({"error": "Photographer not found"}), 404
-
-#     data = request.json
-#     photographer.name = data.get('name', photographer.name)
-#     photographer.email = data.get('email', photographer.email)
-#     photographer.photographer_info = data.get('photographer_info', photographer.photographer_info)
-
-#     # Si también deseas actualizar la foto asociada, debes manejar eso aquí también
-#     if 'photo' in data:
-#         photo = Photos.query.get(photographer.photos_id)
-#         if photo:
-#             photo.image = data['photo'].get('image', photo.image)
-#             db.session.commit()
-
-#     db.session.commit()
-#     return jsonify(photographer.serialize())
-
+@app.route('/cart/<int:user_id>', methods=['GET'])
+def get_cart(user_id):
+    cart = Cart.query.filter_by(user_id=user_id).first()
+    if not cart:
+        return jsonify({'message': 'Cart not found'}), 404
     
-# @app.route('/photographer/<int:id>', methods=['DELETE'])
-# def delete_photographer(id):
-#     photographer = Photographer.query.get(id)
-#     if not photographer:
-#         return jsonify({"error": "Photographer not found"}), 404
+    return jsonify(cart.serialize())
 
-#     db.session.delete(photographer)
-#     db.session.commit()
-#     return jsonify({"success": "Photographer deleted"})
+@app.route('/cart/<int:user_id>/add', methods=['POST'])
+def add_to_cart(user_id):
+    data = request.json
+    photo_id = data['photo_id']
+    quantity = data.get('quantity', 1)
+
+    cart = Cart.query.filter_by(user_id=user_id).first()
+    if not cart:
+        cart = Cart(user_id=user_id, date='today')
+        db.session.add(cart)
+        db.session.commit()
+
+    cart_item = CartItem.query.filter_by(cart_id=cart.id, photo_id=photo_id).first()
+    if cart_item:
+        cart_item.quantity += quantity
+    else:
+        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity)
+        db.session.add(cart_item)
+    
+    db.session.commit()
+    return jsonify({'message': 'Product added to cart'})
+
 
 if __name__ == "__main__":
     with app.app_context():
         print(app.url_map)
         db.create_all()  
     app.run(host="0.0.0.0", port="5000", debug=True)
-
