@@ -1,6 +1,6 @@
 from datetime import timedelta
 from flask import Flask, jsonify, request
-from models import db, User, Photos, Comments, Categories, Cart, Photographer, Favourites
+from models import db, User, Photos, Comments, Categories, Cart, CartItem, Photographer, Favourites
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -25,14 +25,14 @@ expires_jwt = timedelta(minutes=10)
 @app.route('/get_users', methods=['GET'])
 @jwt_required()
 def handle_get_all_users():
-    handle_get_all_users = User().query.all()
-    get_all_users = list(map(lambda user:user.serialize(), handle_get_all_users))
-    return jsonify({"msg": "success", "users": get_all_users}), 200
+    users = User.query.all()
+    users_list = [user.serialize() for user in users]
+    return jsonify({"msg": "success", "users": users_list}), 200
 
-@app.route("/get_users/<int:id>", methods=["GET"])
+@app.route("/users/<int:id>", methods=["GET"])
 def handle_get_user(id):
-    get_user = User.query.get_or_404(id)  
-    return jsonify(get_user.serialize()), 200
+    user = User.query.get_or_404(id)
+    return jsonify(user.serialize()), 200
 
 #inserte email y pasword
 
@@ -88,10 +88,10 @@ def login():
     }), 401
 
 
-@app.route('/get_users/<int:id>', methods=['DELETE'])
+@app.route('/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
-    get_user = User.query.get_or_404(id)
-    db.session.delete(get_user)
+    user = User.query.get_or_404(id)
+    db.session.delete(user)
     db.session.commit()
     return jsonify({"msg": "User was deleted"}), 200
 
@@ -186,10 +186,7 @@ def add_to_cart(user_id):
     return jsonify({'message': 'Product added to cart'})
 
 
-
-
-
-
-
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()  
     app.run(host="0.0.0.0", port="5000", debug=True)
