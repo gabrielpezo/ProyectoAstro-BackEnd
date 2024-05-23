@@ -1,11 +1,11 @@
 from flask import Flask, jsonify, request
-from models import db, User, Photos, Comments, Categories, Cart, Photographer, Favourites
+from models import db, User, Photos, Comments, Categories, Cart, CartItem, Photographer, Favourites
 from flask_migrate import Migrate
 from flask_cors import CORS
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///dataBase.db"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 CORS(app)
 migrate = Migrate(app, db)
@@ -17,7 +17,7 @@ def handle_get_all_users():
     return jsonify({"msg": "success", "users": users_list}), 200
 
 @app.route("/users/<int:id>", methods=["GET"])
-def handle_get_user(id):    
+def handle_get_user(id):
     user = User.query.get_or_404(id)
     return jsonify(user.serialize()), 200
 
@@ -60,13 +60,14 @@ def handle_get_photo(id):
 @app.route('/photos', methods=['POST'])
 def handle_create_photo():
     data = request.get_json()
-    new_photo = Photos()
-    new_photo.name = data["name"]
-    new_photo.price = data["price"]
-    new_photo.rating = data["rating"]
-    new_photo.reviews = data["reviews"]
-    new_photo.likes = data["likes"]
-    new_photo.image = data["image"]
+    new_photo = Photos(
+        name=data["name"],
+        price=data["price"],
+        rating=data["rating"],
+        reviews=data["reviews"],
+        likes=data["likes"],
+        image=data["image"]
+    )
     db.session.add(new_photo)
     db.session.commit()
     return jsonify({"msg": "success", "photo": new_photo.serialize()}), 201
@@ -85,6 +86,37 @@ def handle_delete_photo(id):
     db.session.delete(photo)
     db.session.commit()
     return jsonify({"msg": "Photo was deleted"}), 200
+
+@app.route('/cart/<int:user_id>', methods=['GET'])
+def get_cart(user_id):
+    cart = Cart.query.filter_by(user_id=user_id).first()
+    if not cart:
+        return jsonify({'message': 'Cart not found'}), 404
+    
+    return jsonify(cart.serialize())
+
+@app.route('/cart/<int:user_id>/add', methods=['POST'])
+def add_to_cart(user_id):
+    data = request.json
+    photo_id = data['photo_id']
+    quantity = data.get('quantity', 1)
+
+    cart = Cart.query.filter_by(user_id=user_id).first()
+    if not cart:
+        cart = Cart(user_id=user_id, date='today')
+        db.session.add(cart)
+        db.session.commit()
+
+    cart_item = CartItem.query.filter_by(cart_id=cart.id, photo_id=photo_id).first()
+    if cart_item:
+        cart_item.quantity += quantity
+    else:
+        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity)
+        db.session.add(cart_item)
+    
+    db.session.commit()
+    return jsonify({'message': 'Product added to cart'})
+
 
 if __name__ == "__main__":
     with app.app_context():
