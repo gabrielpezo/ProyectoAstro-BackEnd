@@ -1,16 +1,29 @@
+from datetime import timedelta
 from flask import Flask, jsonify, request
 from models import db, User, Photos, Comments, Categories, Cart, CartItem, Photographer, Favourites
 from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+
+
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///dataBase.db"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SECRET_KEY"] = "MI_PALABRA_SECRETA"
+app.config["JWT_SECRET_KEY"] = "MI_PALABRA_SECRETA_JWT"
 db.init_app(app)
 CORS(app)
+bcrypt = Bcrypt(app)
 migrate = Migrate(app, db)
+jwt =JWTManager(app)
 
-@app.route('/users', methods=['GET'])
+expires_jwt = timedelta(minutes=10)
+
+
+@app.route('/get_users', methods=['GET'])
+@jwt_required()
 def handle_get_all_users():
     users = User.query.all()
     users_list = [user.serialize() for user in users]
@@ -21,23 +34,59 @@ def handle_get_user(id):
     user = User.query.get_or_404(id)
     return jsonify(user.serialize()), 200
 
-@app.route("/users", methods=["POST"])
-def handle_create_user():
-    data = request.get_json()
-    new_user = User(name=data["name"], email=data["email"], password=data["password"])
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({"msg": "success", "user": new_user.serialize()}), 201
+#inserte email y pasword
 
-@app.route("/users/<int:id>", methods=["PUT"])
-def update_user(id):
+@app.route("/create_user", methods=["POST"])
+def handle_user():
     data = request.get_json()
-    user = User.query.get_or_404(id)
-    user.name = data.get("name", user.name)
-    user.email = data.get("email", user.email)
-    user.password = data.get("password", user.password)
+    if User.query.filter_by(email=data["email"]).first():
+        return jsonify({"msg": "Email already registered"}), 400
+
+    create_user = User(
+        name=data["name"],
+        email=data["email"],
+        password=bcrypt.generate_password_hash(data["password"]).decode('utf-8')
+    )
+    db.session.add(create_user)
     db.session.commit()
-    return jsonify({"msg": "user updated", "user": user.serialize()}), 200
+    return jsonify({"msg": "User created successfully", "data": create_user.serialize()}), 201
+
+
+@app.route("/get_users/<int:id>", methods=["PUT"])#cambiar a update_users
+@jwt_required()
+def update_user(id):
+    
+    
+    data = request.get_json()
+    print (data)
+    update_user = User.query.filter_by(id=id).first() 
+    print(update_user)
+    if update_user is not None:
+        update_user.name = data["name"]
+        db.session.commit()
+        return jsonify({"msg": "user upgraded", "user": update_user.serialize()}), 200
+    else:
+        return jsonify({"msg": "user not found"}), 404
+  
+
+@app.route("/login", methods=['POST'])
+def login():
+    email = request.json.get("email")
+    password = request.json.get("password")
+
+    user_exist = User.query.filter_by(email=email).first()
+
+    if user_exist and bcrypt.check_password_hash(user_exist.password, password):
+        token = create_access_token(identity=email, expires_delta=expires_jwt)
+        return jsonify({
+            "msg": "success",
+            "data": user_exist.serialize(),
+            "token": token
+        }), 200
+    return jsonify({
+        "msg": "Invalid email or password"
+    }), 401
+
 
 @app.route('/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
@@ -45,6 +94,25 @@ def delete_user(id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({"msg": "User was deleted"}), 200
+
+#este es mi aporte 
+
+#endpoint recuperar cuenta o contraseña
+@app.route('/recover_password', methods=['POST'])
+def recover_password():
+    data = request.get_json()
+    user = User.query.filter_by(email=data['email']).first()
+    if user:
+        # Aquí agregarías la lógica para enviar el correo electrónico con el enlace de recuperación
+        return jsonify({"msg": "Password recovery email sent"}), 200
+    return jsonify({"msg": "Email not found"}), 404
+
+
+
+
+    
+
+# esto es traido de la nube 
 
 @app.route('/photos', methods=['GET'])
 def handle_get_all_photos():

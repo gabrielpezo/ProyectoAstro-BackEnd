@@ -16,7 +16,7 @@ class User(db.Model):
             "name": self.name,
             "email": self.email
         }
-
+    #falta
 class Photos(db.Model):
     __tablename__ = 'photos'
     id = db.Column(db.Integer, primary_key=True)
@@ -39,23 +39,24 @@ class Photos(db.Model):
             "likes": self.likes,
             "image": self.image
         }
-
-class Comments(db.Model):
+     #mejora posible 
+class Comments (db.Model):
     __tablename__ = 'comments'
     id = db.Column(db.Integer, primary_key=True)
     comments = db.Column(db.String(1000), nullable=False)
     complaints = db.Column(db.String(1000), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship('User', backref='comments')
-    
-    def serialize(self):
-        return {
-            "id": self.id,
-            "comments": self.comments,
-            "complaints": self.complaints
-        }
+    user = db.relationship(User, uselist=False)
 
-class Categories(db.Model):
+    def serialize(self):
+            return{
+                "id": self.id,
+                "comments": self.comments,
+                "complaints": self.complaints,
+                "user_id": self.user.name
+            }
+    #mejora posible 
+class Categories (db.Model):
     __tablename__ = 'categories'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
@@ -99,6 +100,8 @@ class CartItem(db.Model):
             "photo_id": self.photo_id,
             "quantity": self.quantity,
         }
+
+
 
 class Photographer(db.Model):
     __tablename__ = 'photographer'
