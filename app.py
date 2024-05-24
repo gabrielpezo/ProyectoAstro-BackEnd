@@ -19,7 +19,7 @@ bcrypt = Bcrypt(app)
 migrate = Migrate(app, db)
 jwt =JWTManager(app)
 
-expires_jwt = timedelta(minutes=10)
+expires_jwt = timedelta(minutes=1000)
 
 
 @app.route('/get_users', methods=['GET'])
@@ -254,8 +254,12 @@ def get_cart(user_id):
     
     return jsonify(cart.serialize())
 
-@app.route('/cart/<int:user_id>/add', methods=['POST'])
-def add_to_cart(user_id):
+@app.route('/cart/add', methods=['POST'])
+@jwt_required()  # Proteger el endpoint con JWT, el token debe ser válido para acceder
+def add_to_cart():
+    current_user = get_jwt_identity()  # Obtener la identidad del usuario desde el token JWT
+    user_id = current_user  # current_user ya es el ID del usuario
+    
     data = request.json
     photo_id = data['photo_id']
     quantity = data.get('quantity', 1)
@@ -275,6 +279,7 @@ def add_to_cart(user_id):
     
     db.session.commit()
     return jsonify({'message': 'Product added to cart'})
+
 
 
 if __name__ == "__main__":
