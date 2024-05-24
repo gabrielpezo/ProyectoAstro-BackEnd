@@ -145,6 +145,11 @@ def handle_update_photo(id):
     data = request.get_json()
     photo = Photos.query.get_or_404(id)
     photo.image = data.get("image", photo.image)
+    photo.likes = data.get("likes", photo.likes)
+    photo.name = data.get("name", photo.name)
+    photo.price = data.get("price", photo.price)
+    photo.rating = data.get("rating", photo.rating)
+    photo.reviews = data.get("reviews", photo.reviews)
     db.session.commit()
     return jsonify({"msg": "photo updated", "photo": photo.serialize()}), 200
 
