@@ -27,7 +27,7 @@ class Photos(db.Model):
     likes = db.Column(db.Integer, nullable=False)
     image = db.Column(db.String(250), nullable=False)
     categories = db.relationship('Categories', backref='photo', lazy=True)
-    cart_items = db.relationship('CartItem', backref='photo', lazy=True)
+    cart_items = db.relationship('CartItem', backref='product', lazy=True)
 
     def serialize(self):
         return {
@@ -92,14 +92,22 @@ class CartItem(db.Model):
     cart_id = db.Column(db.Integer, db.ForeignKey('cart.id'), nullable=False)
     photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
+    total_amount= db.Column(db.Integer, nullable=False, default=0)
+
+    # Relación con la clase Photos
+    photo = db.relationship('Photos', foreign_keys=[photo_id])
 
     def serialize(self):
         return {
             "id": self.id,
             "cart_id": self.cart_id,
             "photo_id": self.photo_id,
+            "photo_name": self.photo.name,  # Nombre del producto
+            "photo_price": self.photo.price,  # Precio del producto
             "quantity": self.quantity,
+            "total_amount": self.total_amount,
         }
+    
 class Photographer(db.Model):
     __tablename__ = 'photographer'
     __table_args__ = {'extend_existing': True}

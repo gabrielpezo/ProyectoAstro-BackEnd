@@ -254,6 +254,16 @@ def get_cart(user_id):
     
     return jsonify(cart.serialize())
 
+
+@app.route('/getcartitem/<int:user_id>', methods=['GET'])
+def get_cart_item(user_id):
+    cart = CartItem.query.filter_by(id=user_id).first()
+    if not cart:
+        return jsonify({'message': 'Cart not found'}), 404
+    
+    return jsonify(cart.serialize())
+
+
 @app.route('/cart/add', methods=['POST'])
 @jwt_required()  # Proteger el endpoint con JWT, el token debe ser válido para acceder
 def add_to_cart():
@@ -264,6 +274,14 @@ def add_to_cart():
     photo_id = data['photo_id']
     quantity = data.get('quantity', 1)
 
+    # Obtener el precio del producto
+    photo = Photos.query.get(photo_id)
+    if not photo:
+        return jsonify({'message': 'Photo not found'}), 404
+    
+    price = photo.price
+    total_amount = price * quantity
+
     cart = Cart.query.filter_by(user_id=user_id).first()
     if not cart:
         cart = Cart(user_id=user_id, date='today')
@@ -273,12 +291,28 @@ def add_to_cart():
     cart_item = CartItem.query.filter_by(cart_id=cart.id, photo_id=photo_id).first()
     if cart_item:
         cart_item.quantity += quantity
+        cart_item.total_amount += total_amount  # Actualizar el total_amount
     else:
-        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity)
+        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity, total_amount=total_amount)
         db.session.add(cart_item)
     
     db.session.commit()
-    return jsonify({'message': 'Product added to cart'})
+    
+    # Obtener todos los elementos del carrito después de la actualización
+    cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
+    
+    # Serializar los elementos del carrito para incluirlos en la respuesta
+    cart_items_data = [{
+        "id": item.id,
+        "cart_id": item.cart_id,
+        "photo_id": item.photo_id,
+        "photo_name": item.photo.name,  # Nombre del producto
+        "photo_price": item.photo.price,  # Precio del producto
+        "quantity": item.quantity,
+    } for item in cart_items]
+    
+    return jsonify({'message': 'Product added to cart', 'cart_items': cart_items_data})
+
 
 
 
