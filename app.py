@@ -103,7 +103,7 @@ def recover_password():
     data = request.get_json()
     user = User.query.filter_by(email=data['email']).first()
     if user:
-        # Aquí agregarías la lógica para enviar el correo electrónico con el enlace de recuperación
+        
         return jsonify({"msg": "Password recovery email sent"}), 200
     return jsonify({"msg": "Email not found"}), 404
 
@@ -294,7 +294,6 @@ def add_to_cart():
     else:
         cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity, total_amount=total_amount, photo_name=photo.name, photo_price=photo.price)
         db.session.add(cart_item)
-
     
     db.session.commit()
     
