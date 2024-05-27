@@ -113,7 +113,7 @@ def recover_password():
     data = request.get_json()
     user = User.query.filter_by(email=data['email']).first()
     if user:
-        # Aquí agregarías la lógica para enviar el correo electrónico con el enlace de recuperación
+        
         return jsonify({"msg": "Password recovery email sent"}), 200
     return jsonify({"msg": "Email not found"}), 404
 

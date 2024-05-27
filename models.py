@@ -92,21 +92,22 @@ class CartItem(db.Model):
     cart_id = db.Column(db.Integer, db.ForeignKey('cart.id'), nullable=False)
     photo_id = db.Column(db.Integer, db.ForeignKey('photos.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
-    total_amount= db.Column(db.Integer, nullable=False, default=0)
-
-    # Relación con la clase Photos
-    photo = db.relationship('Photos', foreign_keys=[photo_id])
+    total_amount = db.Column(db.Integer, nullable=False, default=0)
+    photo_name = db.Column(db.String(100), nullable=False)
+    photo_price = db.Column(db.Integer, nullable=False)
+    photo = db.relationship('Photos', backref='cart_items_photos', overlaps="cart_items,product")
 
     def serialize(self):
         return {
             "id": self.id,
             "cart_id": self.cart_id,
             "photo_id": self.photo_id,
-            "photo_name": self.photo.name,  # Nombre del producto
-            "photo_price": self.photo.price,  # Precio del producto
             "quantity": self.quantity,
             "total_amount": self.total_amount,
+            "photo_name": self.photo_name,
+            "photo_price": self.photo_price
         }
+
     
 class Photographer(db.Model):
     __tablename__ = 'photographer'
