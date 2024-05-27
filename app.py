@@ -7,6 +7,15 @@ from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+cloudinary.config(
+  cloud_name = 'dmrmfn9zl',
+  api_key = '899873991559169',
+  api_secret = 'YjtMgg5l4GaFo3aTFZOiCq5IrxY'
+)
 
 
 app = Flask(__name__)
@@ -265,15 +274,14 @@ def get_photographer_profile(id):
 
 
 @app.route('/cart/add', methods=['POST'])
-@jwt_required()  # Proteger el endpoint con JWT, el token debe ser válido para acceder
+@jwt_required()  
 def add_to_cart():
-    current_user = get_jwt_identity()  # Obtener la identidad del usuario desde el token JWT
-    user_id = current_user  # current_user ya es el ID del usuario
+    current_user = get_jwt_identity()  
+    user_id = current_user  
     data = request.json
     photo_id = data['photo_id']
     quantity = data.get('quantity', 1)
 
-    # Obtener el precio del producto
     photo = Photos.query.get(photo_id)
     if not photo:
         return jsonify({'message': 'Photo not found'}), 404
@@ -297,10 +305,8 @@ def add_to_cart():
     
     db.session.commit()
     
-    # Obtener todos los elementos del carrito después de la actualización
     cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
     
-    # Serializar los elementos del carrito para incluirlos en la respuesta
     cart_items_data = [{
         "id": item.id,
         "cart_id": item.cart_id,
@@ -349,7 +355,30 @@ def get_cart():
     except Exception as e:
         print(f"Error: {e}")  # Log the error for debugging
         return jsonify({'error': 'Internal Server Error'}), 500
-
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    file_to_upload = request.files['file']
+    
+    if file_to_upload:
+        upload_result = cloudinary.uploader.upload(file_to_upload)
+        return jsonify(upload_result)
+    else:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+@app.route('/delete', methods=['POST'])
+def delete_image():
+    public_id = request.json.get('public_id')
+    if not public_id:
+        return jsonify({"error": "Public ID is required"}), 400
+    
+    try:
+        result = cloudinary.uploader.destroy(public_id)
+        if result.get('result') == 'ok':
+            return jsonify({"result": "ok"})
+        else:
+            return jsonify({"error": "Failed to delete image"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     with app.app_context():
