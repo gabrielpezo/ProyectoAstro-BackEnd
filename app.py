@@ -246,22 +246,22 @@ def get_photographer_profile(id):
     return jsonify(photographer_data)
 
 
-@app.route('/cart/<int:user_id>', methods=['GET'])
-def get_cart(user_id):
-    cart = Cart.query.filter_by(user_id=user_id).first()
-    if not cart:
-        return jsonify({'message': 'Cart not found'}), 404
+# @app.route('/cart/<int:user_id>', methods=['GET'])
+# def get_cart(user_id):
+#     cart = Cart.query.filter_by(user_id=user_id).first()
+#     if not cart:
+#         return jsonify({'message': 'Cart not found'}), 404
     
-    return jsonify(cart.serialize())
+#     return jsonify(cart.serialize())
 
 
-@app.route('/getcartitem/<int:user_id>', methods=['GET'])
-def get_cart_item(user_id):
-    cart = CartItem.query.filter_by(id=user_id).first()
-    if not cart:
-        return jsonify({'message': 'Cart not found'}), 404
+# @app.route('/getcartitem/<int:user_id>', methods=['GET'])
+# def get_cart_item(user_id):
+#     cart = CartItem.query.filter_by(id=user_id).first()
+#     if not cart:
+#         return jsonify({'message': 'Cart not found'}), 404
     
-    return jsonify(cart.serialize())
+#     return jsonify(cart.serialize())
 
 
 @app.route('/cart/add', methods=['POST'])
@@ -269,7 +269,6 @@ def get_cart_item(user_id):
 def add_to_cart():
     current_user = get_jwt_identity()  # Obtener la identidad del usuario desde el token JWT
     user_id = current_user  # current_user ya es el ID del usuario
-    
     data = request.json
     photo_id = data['photo_id']
     quantity = data.get('quantity', 1)
@@ -293,8 +292,9 @@ def add_to_cart():
         cart_item.quantity += quantity
         cart_item.total_amount += total_amount  # Actualizar el total_amount
     else:
-        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity, total_amount=total_amount)
+        cart_item = CartItem(cart_id=cart.id, photo_id=photo_id, quantity=quantity, total_amount=total_amount, photo_name=photo.name, photo_price=photo.price)
         db.session.add(cart_item)
+
     
     db.session.commit()
     
@@ -306,14 +306,50 @@ def add_to_cart():
         "id": item.id,
         "cart_id": item.cart_id,
         "photo_id": item.photo_id,
-        "photo_name": item.photo.name,  # Nombre del producto
-        "photo_price": item.photo.price,  # Precio del producto
+        "photo_name": item.photo_name,  # Nombre del producto
+        "photo_price": item.photo_price,  # Precio del producto
         "quantity": item.quantity,
     } for item in cart_items]
+
     
     return jsonify({'message': 'Product added to cart', 'cart_items': cart_items_data})
 
 
+@app.route('/cartuser', methods=['GET'])
+@jwt_required()  # Requiere que el usuario esté autenticado
+def get_cart():
+    try:
+        # Obtener la identidad del usuario desde el token JWT
+        current_user = get_jwt_identity()
+        user_id = current_user  # current_user ya es el ID del usuario
+
+        # Obtener el carrito del usuario
+        cart = Cart.query.filter_by(user_id=user_id).first()
+        if not cart:
+            return jsonify({'message': 'No cart found for this user'}), 404
+
+        # Obtener todos los elementos del carrito para el carrito dado
+        cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
+
+        if not cart_items:
+            return jsonify({'message': 'No items found in cart'}), 404
+
+        # Serializar los elementos del carrito
+        cart_items_data = [{
+            "id": item.id,
+            "cart_id": item.cart_id,
+            "photo_id": item.photo_id,
+            "photo_name": item.photo_name,
+            "photo_price": item.photo_price,
+            "quantity": item.quantity,
+            "total_amount": item.total_amount  # Añadir total_amount
+        } for item in cart_items]
+
+        return jsonify({'cart_items': cart_items_data}), 200
+
+    except Exception as e:
+        print(f"Error: {e}")  # Log the error for debugging
+        return jsonify({'error': 'Internal Server Error'}), 500
 
 
 if __name__ == "__main__":
@@ -321,3 +357,5 @@ if __name__ == "__main__":
         print(app.url_map)
         db.create_all()  
     app.run(host="0.0.0.0", port="5000", debug=True)
+
+
