@@ -319,6 +319,39 @@ def add_to_cart():
     
     return jsonify({'message': 'Product added to cart', 'cart_items': cart_items_data})
 
+@app.route('/cart/remove', methods=['DELETE'])
+@jwt_required()  
+def remove_from_cart():
+    current_user = get_jwt_identity()  
+    user_id = current_user  
+    data = request.json
+    photo_id = data['photo_id']
+
+    cart = Cart.query.filter_by(user_id=user_id).first()
+    if not cart:
+        return jsonify({'message': 'Cart not found'}), 404
+
+    cart_item = CartItem.query.filter_by(cart_id=cart.id, photo_id=photo_id).first()
+    if not cart_item:
+        return jsonify({'message': 'Item not found in cart'}), 404
+
+    db.session.delete(cart_item)
+    db.session.commit()
+
+    # Opcional: devuelve el carrito actualizado
+    cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
+    
+    cart_items_data = [{
+        "id": item.id,
+        "cart_id": item.cart_id,
+        "photo_id": item.photo_id,
+        "photo_name": item.photo_name,
+        "photo_price": item.photo_price,
+        "quantity": item.quantity,
+    } for item in cart_items]
+
+    return jsonify({'message': 'Product removed from cart', 'cart_items': cart_items_data})
+
 
 @app.route('/cartuser', methods=['GET'])
 @jwt_required()  # Requiere que el usuario esté autenticado
@@ -340,21 +373,26 @@ def get_cart():
             return jsonify({'message': 'No items found in cart'}), 404
 
         # Serializar los elementos del carrito
-        cart_items_data = [{
-            "id": item.id,
-            "cart_id": item.cart_id,
-            "photo_id": item.photo_id,
-            "photo_name": item.photo_name,
-            "photo_price": item.photo_price,
-            "quantity": item.quantity,
-            "total_amount": item.total_amount  # Añadir total_amount
-        } for item in cart_items]
+        cart_items_data = []
+        for item in cart_items:
+            photo = Photos.query.get(item.photo_id)  # Consultar la foto asociada
+            cart_items_data.append({
+                "id": item.id,
+                "cart_id": item.cart_id,
+                "photo_id": item.photo_id,
+                "photo_name": item.photo_name,
+                "photo_price": item.photo_price,
+                "quantity": item.quantity,
+                "total_amount": item.total_amount,  # Añadir total_amount
+                "image_url": photo.image if photo else None  # Añadir image_url
+            })
 
         return jsonify({'cart_items': cart_items_data}), 200
-
     except Exception as e:
-        print(f"Error: {e}")  # Log the error for debugging
-        return jsonify({'error': 'Internal Server Error'}), 500
+        return jsonify({'message': 'Error occurred', 'error': str(e)}), 500
+
+
+   
 @app.route('/upload', methods=['POST'])
 def upload_image():
     file_to_upload = request.files['file']
